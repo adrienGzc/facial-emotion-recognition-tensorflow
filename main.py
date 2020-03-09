@@ -7,11 +7,9 @@ import numpy as np
 import pandas as pd
 
 def generate_dataset():
-  df = pd.read_csv("./datasets/icml_face_data.csv")
+  df = pd.read_csv('./datasets/icml_face_data.csv', sep=r'\s*,\s*', engine='python')
 
-  print(df['Usage'] == 'Training')
   train_samples = df[df['Usage'] == "Training"]
-  print(train_samples.head(3))
   validation_samples = df[df["Usage"]=="PublicTest"]
   test_samples = df[df["Usage"]=="PrivateTest"]
 
@@ -52,7 +50,7 @@ def generate_model(lr=0.001):
   model.add(keras.layers.MaxPooling2D())
   model.add(keras.layers.Dropout(0.25))
 
-  model.add(keras.layers.Conv2D(256,(3,3), activation='relu'))
+  # model.add(keras.layers.Conv2D(256,(3,3), activation='relu'))
   model.add(keras.layers.Conv2D(128,(3,3), padding='same', activation='relu'))
   model.add(keras.layers.MaxPooling2D())
   model.add(keras.layers.Dropout(0.25))
@@ -75,16 +73,15 @@ def generate_model(lr=0.001):
   return model
 
 if __name__=="__main__":
-    #df = pd.read_csv("./fer2013/fer2013.csv")
-    X_train, y_train, X_valid, y_valid, X_test, y_test = generate_dataset()
+  X_train, y_train, X_valid, y_valid, X_test, y_test = generate_dataset()
 
-    X_train = X_train.reshape((-1,48,48,1)).astype(np.float32)
-    X_valid = X_valid.reshape((-1,48,48,1)).astype(np.float32)
-    X_test = X_test.reshape((-1,48,48,1)).astype(np.float32)
+  X_train = X_train.reshape((-1,48,48,1)).astype(np.float32)
+  X_valid = X_valid.reshape((-1,48,48,1)).astype(np.float32)
+  X_test = X_test.reshape((-1,48,48,1)).astype(np.float32)
 
-    X_train_std = X_train/255.
-    X_valid_std = X_valid/255.
-    X_test_std = X_test/255.
+  X_train_std = X_train/255.
+  X_valid_std = X_valid/255.
+  X_test_std = X_test/255.
 
-    model = generate_model(0.01)
-    history = model.fit(X_train_std, y_train, batch_size=128, epochs=35, validation_data=(X_valid_std, y_valid), shuffle=True)
+  model = generate_model(0.01)
+  history = model.fit(X_train_std, y_train, batch_size=64, epochs=10, validation_data=(X_valid_std, y_valid), shuffle=True)
