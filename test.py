@@ -1,102 +1,87 @@
-import math
-import numpy as np
-import h5py
-import matplotlib.pyplot as plt
-import scipy
-from PIL import Image
-from scipy import ndimage
 import tensorflow as tf
-from tensorflow.python.framework import ops
-from cnn_utils import *
+from tensorflow import keras
+#from tensorflow.keras.models import Sequential
+#from tensorflow.keras.layers import Dense, Conv2D, MaxPooling2D, Dropout, Flatten
+import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
 
-def load_dataset():
-  train_dataset = h5py.File('datasets/train_signs.h5', "r")
-  train_set_x_orig = np.array(train_dataset["train_set_x"][:]) # your train set features
-  train_set_y_orig = np.array(train_dataset["train_set_y"][:]) # your train set labels
+def generate_dataset():
+  df = pd.read_csv('./datasets/icml_face_data.csv', sep=r'\s*,\s*', engine='python')
 
-  test_dataset = h5py.File('datasets/test_signs.h5', "r")
-  test_set_x_orig = np.array(test_dataset["test_set_x"][:]) # your test set features
-  test_set_y_orig = np.array(test_dataset["test_set_y"][:]) # your test set labels
+  train_samples = df[df['Usage'] == "Training"]
+  validation_samples = df[df["Usage"]=="PublicTest"]
+  test_samples = df[df["Usage"]=="PrivateTest"]
 
-  classes = np.array(test_dataset["list_classes"][:]) # the list of classes
+  y_train = train_samples.emotion.astype(np.int32).values
+  y_valid = validation_samples.emotion.astype(np.int32).values
+  y_test = test_samples.emotion.astype(np.int32).values
 
-  train_set_y_orig = train_set_y_orig.reshape((1, train_set_y_orig.shape[0]))
-  test_set_y_orig = test_set_y_orig.reshape((1, test_set_y_orig.shape[0]))
+  X_train =np.array([ np.fromstring(image, np.uint8, sep=" ").reshape((48,48)) for image in train_samples.pixels])
+  X_valid =np.array([ np.fromstring(image, np.uint8, sep=" ").reshape((48,48)) for image in validation_samples.pixels])
+  X_test =np.array([ np.fromstring(image, np.uint8, sep=" ").reshape((48,48)) for image in test_samples.pixels])
 
-  return train_set_x_orig, train_set_y_orig, test_set_x_orig, test_set_y_orig, classes
+  return X_train, y_train, X_valid, y_valid, X_test, y_test
 
-def random_mini_batches(X, Y, mini_batch_size = 64, seed = 0):
-  m = X.shape[0]                  # number of training examples
-  mini_batches = []
-  np.random.seed(seed)
+def generate_model(lr=0.001):
+  model = keras.models.Sequential()
 
-  # Step 1: Shuffle (X, Y)
-  permutation = list(np.random.permutation(m))
-  shuffled_X = X[permutation,:,:,:]
-  shuffled_Y = Y[permutation,:]
+  model.add(keras.layers.Conv2D(64,(3,3), input_shape=(48,48, 1), padding="same"))
+  model.add(keras.layers.BatchNormalization())
+  model.add(keras.layers.Activation('relu'))
+  model.add(keras.layers.MaxPooling2D())
+  model.add(keras.layers.Dropout(0.20))
 
-  # Step 2: Partition (shuffled_X, shuffled_Y). Minus the end case.
-  num_complete_minibatches = math.floor(m/mini_batch_size) # number of mini batches of size mini_batch_size in your partitionning
-  for k in range(0, num_complete_minibatches):
-      mini_batch_X = shuffled_X[k * mini_batch_size : k * mini_batch_size + mini_batch_size,:,:,:]
-      mini_batch_Y = shuffled_Y[k * mini_batch_size : k * mini_batch_size + mini_batch_size,:]
-      mini_batch = (mini_batch_X, mini_batch_Y)
-      mini_batches.append(mini_batch)
+  model.add(keras.layers.Conv2D(128,(5,5), padding='same'))
+  model.add(keras.layers.BatchNormalization())
+  model.add(keras.layers.Activation('relu'))
+  model.add(keras.layers.MaxPooling2D())
+  model.add(keras.layers.Dropout(0.20))
 
-  # Handling the end case (last mini-batch < mini_batch_size)
-  if m % mini_batch_size != 0:
-      mini_batch_X = shuffled_X[num_complete_minibatches * mini_batch_size : m,:,:,:]
-      mini_batch_Y = shuffled_Y[num_complete_minibatches * mini_batch_size : m,:]
-      mini_batch = (mini_batch_X, mini_batch_Y)
-      mini_batches.append(mini_batch)
+  model.add(keras.layers.Conv2D(512,(3,3), padding="same"))
+  model.add(keras.layers.BatchNormalization())
+  model.add(keras.layers.Activation('relu'))
+  model.add(keras.layers.MaxPooling2D())
+  model.add(keras.layers.Dropout(0.20))
 
-  return mini_batches
+  model.add(keras.layers.Conv2D(512,(3,3)))
+  model.add(keras.layers.BatchNormalization())
+  model.add(keras.layers.Activation('relu'))
+  model.add(keras.layers.MaxPooling2D())
+  model.add(keras.layers.Dropout(0.25))
 
-def convert_to_one_hot(Y, C):
-  Y = np.eye(C)[Y.reshape(-1)].T
-  return Y
+  # model.add(keras.layers.Conv2D(256,(3,3), activation='relu'))
+  model.add(keras.layers.Conv2D(128,(3,3), padding='same', activation='relu'))
+  model.add(keras.layers.MaxPooling2D())
+  model.add(keras.layers.Dropout(0.25))
 
-def forward_propagation_for_predict(X, parameters):
-  # Retrieve the parameters from the dictionary "parameters" 
-  W1 = parameters['W1']
-  b1 = parameters['b1']
-  W2 = parameters['W2']
-  b2 = parameters['b2']
-  W3 = parameters['W3']
-  b3 = parameters['b3'] 
+  model.add(keras.layers.GlobalAveragePooling2D())
+  model.add(keras.layers.Flatten())
+  model.add(keras.layers.Dense(256))
+  model.add(keras.layers.BatchNormalization())
+  model.add(keras.layers.Activation('relu'))
+  model.add(keras.layers.Dropout(0.5))
 
-  # Numpy Equivalents:
-  Z1 = tf.add(tf.matmul(W1, X), b1)                      # Z1 = np.dot(W1, X) + b1
-  A1 = tf.nn.relu(Z1)                                    # A1 = relu(Z1)
-  Z2 = tf.add(tf.matmul(W2, A1), b2)                     # Z2 = np.dot(W2, a1) + b2
-  A2 = tf.nn.relu(Z2)                                    # A2 = relu(Z2)
-  Z3 = tf.add(tf.matmul(W3, A2), b3)                     # Z3 = np.dot(W3,Z2) + b3
+  model.add(keras.layers.Dense(512, activation='relu'))
+  model.add(keras.layers.BatchNormalization())
+  model.add(keras.layers.Activation('relu'))
+  model.add(keras.layers.Dropout(0.5))
 
-  return Z3
+  model.add(keras.layers.Dense(7,activation='softmax'))
 
-def predict(X, parameters):
-  W1 = tf.convert_to_tensor(parameters["W1"])
-  b1 = tf.convert_to_tensor(parameters["b1"])
-  W2 = tf.convert_to_tensor(parameters["W2"])
-  b2 = tf.convert_to_tensor(parameters["b2"])
-  W3 = tf.convert_to_tensor(parameters["W3"])
-  b3 = tf.convert_to_tensor(parameters["b3"])
+  model.compile(loss="sparse_categorical_crossentropy", optimizer=keras.optimizers.Adam(lr=lr) , metrics=['accuracy'])
+  return model
 
-  params = {"W1": W1,
-            "b1": b1,
-            "W2": W2,
-            "b2": b2,
-            "W3": W3,
-            "b3": b3}
+if __name__=="__main__":
+  X_train, y_train, X_valid, y_valid, X_test, y_test = generate_dataset()
 
-  x = tf.placeholder("float", [12288, 1])
+  X_train = X_train.reshape((-1,48,48,1)).astype(np.float32)
+  X_valid = X_valid.reshape((-1,48,48,1)).astype(np.float32)
+  X_test = X_test.reshape((-1,48,48,1)).astype(np.float32)
 
-  z3 = forward_propagation_for_predict(x, params)
-  p = tf.argmax(z3)
+  X_train_std = X_train/255.
+  X_valid_std = X_valid/255.
+  X_test_std = X_test/255.
 
-  sess = tf.Session()
-  prediction = sess.run(p, feed_dict = {x: X})
-
-  print(prediction)
-  return prediction
-
+  model = generate_model(0.01)
+  history = model.fit(X_train_std, y_train, batch_size=64, epochs=10, validation_data=(X_valid_std, y_valid), shuffle=True)
