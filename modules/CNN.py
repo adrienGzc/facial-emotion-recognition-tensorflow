@@ -1,5 +1,6 @@
 import tensorflow as tf
 import matplotlib.pyplot as plt
+import numpy as np
 
 class CNN:
   def __init__(self):
@@ -24,7 +25,7 @@ class CNN:
     model.add(tf.keras.layers.BatchNormalization())
     model.add(tf.keras.layers.MaxPooling2D(2, 2))
 
-    model.add(tf.keras.layers.Conv2D(512, (3, 3), activation='relu', padding='same'))
+    model.add(tf.keras.layers.Conv2D(256, (3, 3), activation='relu', padding='same'))
     model.add(tf.keras.layers.BatchNormalization())
     model.add(tf.keras.layers.MaxPooling2D(2, 2))
 
@@ -49,7 +50,19 @@ class CNN:
       shuffle=True,
       **kwargs
     )
-    # self.model.evaluate(test_images,  test_labels, verbose=2)
 
-  def predict(self, dataset):
-    pass
+  def getAccuracy(self, predictions, label):
+    acc = 0
+    for predict in predictions:
+      if np.argmax(predict) == label:
+        acc += 1
+    
+    if acc == 0:
+      return acc
+    return acc / len(predictions)
+
+  def predict(self, dataset, target=None):
+    predictions = self.model.predict(dataset)
+    print(predictions)
+    print()
+    print(target)

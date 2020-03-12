@@ -48,9 +48,11 @@ def showImage(image):
 def main():
   cnn = CNN.CNN()
   loader = Loader.Loader()
-  (trainData, trainLabel), (validationData, validationLabel), (_testData, _testLabel) = loader.loadFEC_dataset()
-  cnn.fit(trainData, trainLabel, validationData, validationLabel, epochs=200, batch_size=64)
-  cnn.plotEvaluationModel()
+  (trainData, trainLabel), (validationData, validationLabel), (testData, testLabel) = loader.loadFEC_dataset()
+  cnn.fit(trainData, trainLabel, validationData, validationLabel, epochs=10, batch_size=64)
+  cnn.predict(testData, testLabel)
+  # cnn.plotEvaluationModel()
+
 
 if __name__ == "__main__":
     main()
