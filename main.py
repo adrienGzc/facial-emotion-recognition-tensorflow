@@ -29,7 +29,7 @@ def createImageFromPixel(folder, dataset, limit=None):
     cv2.imwrite(pathname, pixels)
     print('Image saved: {}'.format(pathname))
 
-def imageToPixel(imageFile):  
+def imageToPixel(imageFile):
   return cv2.imread(imageFile)
 
 def convertImagesToPixels(folder):
@@ -49,10 +49,13 @@ def main():
   cnn = CNN.CNN()
   loader = Loader.Loader()
   (trainData, trainLabel), (validationData, validationLabel), (testData, testLabel) = loader.loadFEC_dataset()
-  cnn.fit(trainData, trainLabel, validationData, validationLabel, epochs=10, batch_size=64)
-  cnn.predict(testData, testLabel)
-  # cnn.plotEvaluationModel()
 
+  # model = cnn.getModel()
+  # model.save(filepath='./model/', save_format='tf', overwrite=True, include_optimizer=True)
+
+  cnn.fit(trainData, trainLabel, validationData, validationLabel, epochs=25, batch_size=64)
+  predictions = cnn.predict(testData)
+  print(cnn.getAccuracy(predictions, testLabel))
 
 if __name__ == "__main__":
     main()
