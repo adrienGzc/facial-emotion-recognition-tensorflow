@@ -1,6 +1,6 @@
 from __future__ import absolute_import, division, print_function, unicode_literals
 import tensorflow as tf
-# import matplotlib.pyplot as plt
+import matplotlib.pyplot as plt
 import numpy as np
 
 class CNN:
@@ -9,14 +9,14 @@ class CNN:
     self.__history = None
     self.__saveFolder = './model'
 
-  # def plotEvaluationModel(self):
-  #   plt.plot(self.__history.history['accuracy'], label='Accuracy')
-  #   plt.plot(self.__history.history['val_accuracy'], label = 'Validation Accuracy')
-  #   plt.xlabel('Epoch')
-  #   plt.ylabel('Accuracy')
-  #   plt.ylim([0.2, 1])
-  #   plt.legend(loc='lower right')
-  #   plt.show()
+  def plotEvaluationModel(self):
+    plt.plot(self.__history.history['accuracy'], label='Accuracy')
+    plt.plot(self.__history.history['val_accuracy'], label = 'Validation Accuracy')
+    plt.xlabel('Epoch')
+    plt.ylabel('Accuracy')
+    plt.ylim([0.2, 1])
+    plt.legend(loc='lower right')
+    plt.show()
 
   def __createLayersCNN(self, model):
     model.add(tf.keras.layers.Conv2D(32, (3, 3), activation='relu', input_shape=(48, 48, 1), padding='same'))
