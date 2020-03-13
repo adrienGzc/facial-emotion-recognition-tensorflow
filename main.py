@@ -1,87 +1,58 @@
+import os
 import tensorflow as tf
 from tensorflow import keras
-#from tensorflow.keras.models import Sequential
-#from tensorflow.keras.layers import Dense, Conv2D, MaxPooling2D, Dropout, Flatten
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+from cv2 import cv2
 
-def generate_dataset():
-  df = pd.read_csv('./datasets/icml_face_data.csv', sep=r'\s*,\s*', engine='python')
+from modules import CNN, Loader
 
-  train_samples = df[df['Usage'] == "Training"]
-  validation_samples = df[df["Usage"]=="PublicTest"]
-  test_samples = df[df["Usage"]=="PrivateTest"]
+def getFilePath(file, folder):
+  pwd = os.path.abspath(folder) + '/' + os.path.dirname(file)
+  return pwd + file
 
-  y_train = train_samples.emotion.astype(np.int32).values
-  y_valid = validation_samples.emotion.astype(np.int32).values
-  y_test = test_samples.emotion.astype(np.int32).values
+def reshapeStringPixel(pixel):
+  return np.asarray(list(pixel.split(' ')), dtype=np.uint8).reshape((48, 48))
 
-  X_train =np.array([ np.fromstring(image, np.uint8, sep=" ").reshape((48,48)) for image in train_samples.pixels])
-  X_valid =np.array([ np.fromstring(image, np.uint8, sep=" ").reshape((48,48)) for image in validation_samples.pixels])
-  X_test =np.array([ np.fromstring(image, np.uint8, sep=" ").reshape((48,48)) for image in test_samples.pixels])
+def createImageFromPixel(folder, dataset, limit=None):
+  pwd = os.getcwd()
+  imagesFolder = pwd + '/' + folder
 
-  return X_train, y_train, X_valid, y_valid, X_test, y_test
+  if not os.path.exists(imagesFolder):
+    os.makedirs(imagesFolder)
+  for index, row in dataset.iterrows():
+    if limit is not None and index + 1 > limit:
+      break
+    pixels = reshapeStringPixel(row['pixels'])
+    pathname = os.path.join(imagesFolder, str(index + 1) + '.jpg')
+    cv2.imwrite(pathname, pixels)
+    print('Image saved: {}'.format(pathname))
 
-def generate_model(lr=0.001):
-  model = keras.models.Sequential()
+def imageToPixel(imageFile):
+  return cv2.imread(imageFile)
 
-  model.add(keras.layers.Conv2D(64,(3,3), input_shape=(48,48, 1), padding="same"))
-  model.add(keras.layers.BatchNormalization())
-  model.add(keras.layers.Activation('relu'))
-  model.add(keras.layers.MaxPooling2D())
-  model.add(keras.layers.Dropout(0.20))
+def convertImagesToPixels(folder):
+  listImages = os.listdir(folder)
+  images = list()
 
-  model.add(keras.layers.Conv2D(128,(5,5), padding='same'))
-  model.add(keras.layers.BatchNormalization())
-  model.add(keras.layers.Activation('relu'))
-  model.add(keras.layers.MaxPooling2D())
-  model.add(keras.layers.Dropout(0.20))
+  for image in listImages:
+    pathImage = getFilePath(image, folder)
+    images.append(imageToPixel(pathImage))
+  return np.asarray(images)
 
-  model.add(keras.layers.Conv2D(512,(3,3), padding="same"))
-  model.add(keras.layers.BatchNormalization())
-  model.add(keras.layers.Activation('relu'))
-  model.add(keras.layers.MaxPooling2D())
-  model.add(keras.layers.Dropout(0.20))
+def showImage(image):
+  plt.imshow(image)
+  plt.show
 
-  model.add(keras.layers.Conv2D(512,(3,3)))
-  model.add(keras.layers.BatchNormalization())
-  model.add(keras.layers.Activation('relu'))
-  model.add(keras.layers.MaxPooling2D())
-  model.add(keras.layers.Dropout(0.25))
+def main():
+  cnn = CNN.CNN()
+  loader = Loader.Loader()
+  (trainData, trainLabel), (validationData, validationLabel), (testData, testLabel) = loader.loadFEC_dataset()
 
-  # model.add(keras.layers.Conv2D(256,(3,3), activation='relu'))
-  model.add(keras.layers.Conv2D(128,(3,3), padding='same', activation='relu'))
-  model.add(keras.layers.MaxPooling2D())
-  model.add(keras.layers.Dropout(0.25))
+  cnn.fit(trainData, trainLabel, validationData, validationLabel, epochs=50, batch_size=256)
+  predictions = cnn.predict(testData)
+  print(cnn.getAccuracy(predictions, testLabel))
 
-  #model.add(keras.layers.GlobalAveragePooling2D())
-  model.add(keras.layers.Flatten())
-  model.add(keras.layers.Dense(256))
-  model.add(keras.layers.BatchNormalization())
-  model.add(keras.layers.Activation('relu'))
-  model.add(keras.layers.Dropout(0.5))
-
-  model.add(keras.layers.Dense(512, activation='relu'))
-  model.add(keras.layers.BatchNormalization())
-  model.add(keras.layers.Activation('relu'))
-  model.add(keras.layers.Dropout(0.5))
-
-  model.add(keras.layers.Dense(7,activation='softmax'))
-
-  model.compile(loss="sparse_categorical_crossentropy", optimizer=keras.optimizers.Adam(lr=lr) , metrics=['accuracy'])
-  return model
-
-if __name__=="__main__":
-  X_train, y_train, X_valid, y_valid, X_test, y_test = generate_dataset()
-
-  X_train = X_train.reshape((-1,48,48,1)).astype(np.float32)
-  X_valid = X_valid.reshape((-1,48,48,1)).astype(np.float32)
-  X_test = X_test.reshape((-1,48,48,1)).astype(np.float32)
-
-  X_train_std = X_train/255.
-  X_valid_std = X_valid/255.
-  X_test_std = X_test/255.
-
-  model = generate_model(0.01)
-  history = model.fit(X_train_std, y_train, batch_size=64, epochs=10, validation_data=(X_valid_std, y_valid), shuffle=True)
+if __name__ == "__main__":
+    main()

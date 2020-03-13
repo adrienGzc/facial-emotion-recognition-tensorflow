@@ -2,34 +2,42 @@ import pandas as pd
 import numpy as np
 
 class Loader:
-  def __init__(self):
-    pass
+  def __convertTo48Image(self, images):
+    return np.array([np.fromstring(image, np.uint8, sep=" ").reshape((48,48)) for image in images.pixels])
 
-  def loadFEC_dataset(self, location='../datasets/icml_face_data.csv'):
-    df = pd.read_csv('./datasets/icml_face_data.csv', sep=r'\s*,\s*', engine='python')
+  def __reshapeData(self, data):
+    return data.reshape((-1, 48, 48, 1)).astype(np.float32)
 
-    # Filter to separate dataset by Usage.
-    train_samples = df[df['Usage'] == 'Training']
-    validation_samples = df[df['Usage'] == 'PublicTest']
-    test_samples = df[df['Usage'] == 'PrivateTest']
-
-    # Assign type to label.
-    y_train = train_samples.emotion.astype(np.int32).values
-    y_valid = validation_samples.emotion.astype(np.int32).values
-    y_test = test_samples.emotion.astype(np.int32).values
+  def __getDataByUsages(self, dataset):
+    trainData = dataset[dataset['Usage'] == 'Training']
+    validationData = dataset[dataset['Usage'] == 'PublicTest']
+    testData = dataset[dataset['Usage'] == 'PrivateTest']
 
     # Shape the pixels string of the image to a 48 by 48 pixel image.
-    X_train = np.array([ np.fromstring(image, np.uint8, sep=" ").reshape((48,48)) for image in train_samples.pixels])
-    X_valid = np.array([ np.fromstring(image, np.uint8, sep=" ").reshape((48,48)) for image in validation_samples.pixels])
-    X_test = np.array([ np.fromstring(image, np.uint8, sep=" ").reshape((48,48)) for image in test_samples.pixels])
+    return (
+      self.__reshapeData(self.__convertTo48Image(trainData)),
+      self.__reshapeData(self.__convertTo48Image(validationData)),
+      self.__reshapeData(self.__convertTo48Image(testData))
+    )
 
-    X_train = X_train.reshape((-1, 48, 48, 1)).astype(np.float32)
-    X_valid = X_valid.reshape((-1, 48, 48, 1)).astype(np.float32)
-    X_test = X_test.reshape((-1, 48, 48, 1)).astype(np.float32)
+  def loadFEC_dataset(self, location='../datasets/icml_face_data.csv'):
+    dataset = pd.read_csv('./datasets/icml_face_data.csv', sep=r'\s*,\s*', engine='python')
 
-    # Normalize data.
-    X_train_std = X_train / 255.
-    X_valid_std = X_valid / 255.
-    X_test_std = X_test / 255.
+    # Filter to separate dataset by Usage.
+    trainData, validationData, testData = self.__getDataByUsages(dataset)
 
-    return (X_train_std, y_train), (X_valid_std, y_valid), (X_test_std, y_test)
+    # Assign type to label.
+    trainLabel = trainData.emotion.astype(np.int32).values
+    validLabel = validationData.emotion.astype(np.int32).values
+    testLabel = testData.emotion.astype(np.int32).values
+
+    # Normalize data based on the max amount for a pixel.
+    trainDataNormalized = trainData / 255.0
+    validationDataNormalized = validationData / 255.0
+    testDataNormalized = testData / 255.0
+
+    return (
+      (trainDataNormalized, trainLabel),
+      (validationDataNormalized, validLabel),
+      (testDataNormalized, testLabel)
+    )
