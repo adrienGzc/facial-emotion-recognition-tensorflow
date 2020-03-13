@@ -8,17 +8,16 @@ class Loader:
   def __reshapeData(self, data):
     return data.reshape((-1, 48, 48, 1)).astype(np.float32)
 
+  def __formatData(self, train,  validation, test):
+    # Shape the pixels string of the image to a 48 by 48 pixel image.
+    return self.__reshapeData(self.__convertTo48Image(train)), self.__reshapeData(self.__convertTo48Image(validation)), self.__reshapeData(self.__convertTo48Image(test))
+
   def __getDataByUsages(self, dataset):
     trainData = dataset[dataset['Usage'] == 'Training']
     validationData = dataset[dataset['Usage'] == 'PublicTest']
     testData = dataset[dataset['Usage'] == 'PrivateTest']
 
-    # Shape the pixels string of the image to a 48 by 48 pixel image.
-    return (
-      self.__reshapeData(self.__convertTo48Image(trainData)),
-      self.__reshapeData(self.__convertTo48Image(validationData)),
-      self.__reshapeData(self.__convertTo48Image(testData))
-    )
+    return trainData, validationData, testData
 
   def loadFEC_dataset(self, location='../datasets/icml_face_data.csv'):
     dataset = pd.read_csv('./datasets/icml_face_data.csv', sep=r'\s*,\s*', engine='python')
@@ -30,6 +29,8 @@ class Loader:
     trainLabel = trainData.emotion.astype(np.int32).values
     validLabel = validationData.emotion.astype(np.int32).values
     testLabel = testData.emotion.astype(np.int32).values
+
+    trainData, validationData, testData = self.__formatData(trainData, validationData, testData)
 
     # Normalize data based on the max amount for a pixel.
     trainDataNormalized = trainData / 255.0

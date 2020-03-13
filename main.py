@@ -50,7 +50,7 @@ def main():
   loader = Loader.Loader()
   (trainData, trainLabel), (validationData, validationLabel), (testData, testLabel) = loader.loadFEC_dataset()
 
-  cnn.fit(trainData, trainLabel, validationData, validationLabel, epochs=50, batch_size=256)
+  cnn.fit(trainData, trainLabel, validationData, validationLabel, forceFit=True, epochs=50, batch_size=256)
   predictions = cnn.predict(testData)
   print(cnn.getAccuracy(predictions, testLabel))
 
