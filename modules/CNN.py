@@ -21,9 +21,11 @@ class CNN:
   def __createLayersCNN(self, model):
     model.add(tf.keras.layers.Conv2D(32, (3, 3), activation='relu', input_shape=(48, 48, 1), padding='same'))
     model.add(tf.keras.layers.MaxPooling2D(2, 2))
+    model.add(tf.keras.layers.Dropout(0.1))
 
     model.add(tf.keras.layers.Conv2D(64, (3, 3), activation='relu', padding='same'))
     model.add(tf.keras.layers.MaxPooling2D(2, 2))
+    model.add(tf.keras.layers.Dropout(0.15))
 
     model.add(tf.keras.layers.Conv2D(128, (3, 3), activation='relu', padding='same'))
     model.add(tf.keras.layers.MaxPooling2D(2, 2))
